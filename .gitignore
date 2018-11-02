@@ -1,0 +1,12 @@
+# Local server and self-signed certs I use for local testing
+cert/
+server.js
+
+# Node modules
+node_modules/
+
+# Place where I store files I'm not ready to actually delete for certain yet
+obsolete/
+
+# Temporary file that flatten.py uses
+.tmp.js
