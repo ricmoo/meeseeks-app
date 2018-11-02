@@ -1,0 +1,907 @@
+<html>
+    <body><div id="_mo" style="font-family: monospace; font-size: 18px; padding: 20px; white-space: pre;"></div>
+        <script>(function(global) {
+
+'use strict';
+
+function log(message) {
+  console.log(message);
+  document.getElementById('_mo').textContent += message + "\n";
+}
+
+function concat(array) {
+  var size = 0;
+  array.forEach(function(block) { size += block.length; });
+  var result = new Uint8Array(size);
+  var offset = 0;
+  array.forEach(function(block) {
+    result.set(block, offset);
+    offset += block.length;
+  });
+  return result
+}
+
+function fill(array, length, value, left) {
+    while (array.length < length) {
+        array[left ? "unshift": "push"](value);
+    }
+    return array;
+}
+
+
+/**
+ * var keccak256 = require('js-sha3');
+ *
+ * This implementation is heavily based on js-sha3.
+ * See: https://www.npmjs.com/package/js-sha3
+ *
+ * Copyright 2015-2016 Chen, Yi-Cyuan
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+var keccak256 = (function() {
+
+  var HEX_CHARS = '0123456789abcdef'.split('');
+  var KECCAK_PADDING = [1, 256, 65536, 16777216];
+  var SHIFT = [0, 8, 16, 24];
+  var RC = [1, 0, 32898, 0, 32906, 2147483648, 2147516416, 2147483648, 32907, 0, 2147483649,
+            0, 2147516545, 2147483648, 32777, 2147483648, 138, 0, 136, 0, 2147516425, 0,
+            2147483658, 0, 2147516555, 0, 139, 2147483648, 32905, 2147483648, 32771,
+            2147483648, 32770, 2147483648, 128, 2147483648, 32778, 0, 2147483658, 2147483648,
+            2147516545, 2147483648, 32896, 2147483648, 2147483649, 0, 2147516424, 2147483648];
+
+  function Keccak(bits, padding, outputBits) {
+    this.blocks = [];
+    this.s = [];
+    this.padding = padding;
+    this.outputBits = outputBits;
+    this.reset = true;
+    this.block = 0;
+    this.start = 0;
+    this.blockCount = (1600 - (bits << 1)) >> 5;
+    this.byteCount = this.blockCount << 2;
+    this.outputBlocks = outputBits >> 5;
+    this.extraBytes = (outputBits & 31) >> 3;
+
+    for (var i = 0; i < 50; ++i) {
+      this.s[i] = 0;
+    }
+  }
+
+  Keccak.prototype.update = function (message) {
+    if (message.constructor !== Uint8Array) {
+      throw new Error('bad message');
+    }
+
+    var length = message.length, blocks = this.blocks, byteCount = this.byteCount,
+      blockCount = this.blockCount, index = 0, s = this.s, i, code;
+
+    while (index < length) {
+      if (this.reset) {
+        this.reset = false;
+        blocks[0] = this.block;
+        for (i = 1; i < blockCount + 1; ++i) {
+          blocks[i] = 0;
+        }
+      }
+      for (i = this.start; index < length && i < byteCount; ++index) {
+        blocks[i >> 2] |= message[index] << SHIFT[i++ & 3];
+      }
+      this.lastByteIndex = i;
+      if (i >= byteCount) {
+        this.start = i - byteCount;
+        this.block = blocks[blockCount];
+        for (i = 0; i < blockCount; ++i) {
+          s[i] ^= blocks[i];
+        }
+        f(s);
+        this.reset = true;
+      } else {
+        this.start = i;
+      }
+    }
+    return this;
+  };
+
+  Keccak.prototype.finalize = function () {
+    var blocks = this.blocks, i = this.lastByteIndex, blockCount = this.blockCount, s = this.s;
+    blocks[i >> 2] |= this.padding[i & 3];
+    if (this.lastByteIndex === this.byteCount) {
+      blocks[0] = blocks[blockCount];
+      for (i = 1; i < blockCount + 1; ++i) {
+        blocks[i] = 0;
+      }
+    }
+    blocks[blockCount - 1] |= 0x80000000;
+    for (i = 0; i < blockCount; ++i) {
+      s[i] ^= blocks[i];
+    }
+    f(s);
+  };
+
+  Keccak.prototype.digest = Keccak.prototype.array = function () {
+    this.finalize();
+
+    var blockCount = this.blockCount, s = this.s, outputBlocks = this.outputBlocks,
+        extraBytes = this.extraBytes, i = 0, j = 0;
+    var array = [], offset, block;
+    while (j < outputBlocks) {
+      for (i = 0; i < blockCount && j < outputBlocks; ++i, ++j) {
+        offset = j << 2;
+        block = s[i];
+        array[offset] = block & 0xFF;
+        array[offset + 1] = (block >> 8) & 0xFF;
+        array[offset + 2] = (block >> 16) & 0xFF;
+        array[offset + 3] = (block >> 24) & 0xFF;
+      }
+      if (j % blockCount === 0) {
+        f(s);
+      }
+    }
+    if (extraBytes) {
+      offset = j << 2;
+      block = s[i];
+      if (extraBytes > 0) {
+        array[offset] = block & 0xFF;
+      }
+      if (extraBytes > 1) {
+        array[offset + 1] = (block >> 8) & 0xFF;
+      }
+      if (extraBytes > 2) {
+        array[offset + 2] = (block >> 16) & 0xFF;
+      }
+    }
+    return array;
+  };
+
+  var f = function (s) {
+    for (var n = 0; n < 48; n += 2) {
+      var c = [];
+      for (var i = 0; i < 10; i++) {
+          c[i] = 0;
+          for (var j = i; j < 50; j += 10) { c[i] ^= s[j]; }
+      }
+
+      for (var i = 0; i < 10; i++) {
+        var v = c[(8 + i) % 10] ^ ((c[(2 + i) % 10] << 1) | (c[(2 + ((i % 2) ? (i - 1): (i + 1))) % 10] >>> 31));
+        for (var j = i; j < 50; j += 10) {
+            s[j] ^= v;
+        }
+      }
+
+      var bs = "34c31430c35464b61560b65591594b95590bc0ec52c4ec1219c1c41dc1844944cc4d448c50355d54351d84d81380d853b5db03b1db430810df0c109f3863da3c639a6996c76d96879889d89c8998a12a4ea52a0e21b24525b2052c429c2842dc58a5d65ca59688f8d18cf891bd8b88b98bc815e10211e1424574094174497477197077597c97977897d7a82adeac2a9e";
+      var gb = function(i, j) {
+          return (parseInt(bs.substring(i * 6, i * 6 + 6), 16) >> (j * 6)) & 63;
+      }
+
+      var b = [ s[0], s[1] ]
+      for (var i = 0; i < 48; i++) {
+          b.push((s[gb(i, 3)] << gb(i, 2)) | (s[gb(i, 1)] >>> gb(i, 0)));
+      }
+
+      for (var i = 0; i < 50; i++) {
+          var j = i - (i % 10);
+          s[i] = b[i] ^ (~b[j + ((i + 2) % 10)] & b[j + ((i + 4) % 10)]);
+      }
+
+      s[0] ^= RC[n];
+      s[1] ^= RC[n + 1];
+    }
+  };
+
+  return function (message) {
+    return new Keccak(256, KECCAK_PADDING, 256).update(message).digest();
+  };
+})();
+/***** END OF require('js-sha3'); */
+
+/**
+ * var sha256 = require('hash.js').sha256;
+ *
+ * This implementation is heavily based on hash.js.
+ *
+ * This software is licensed under the MIT License.
+ *
+ * Copyright Fedor Indutny, 2014.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit
+ * persons to whom the Software is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+var sha256 = (function() {
+
+  function isPrime(value) {
+    if (value === 2) { return false; }
+    for (var i = 3; i < value; i += 2) {
+      if ((value % i) === 0) { return false; }
+    }
+    return true;
+  }
+
+  function getPrime(index) {
+      if (index <= 1) { return 2 + index; }
+      index -= 2;
+      for (var i = 6; i <= 312; i += 6) {
+        if (isPrime(i - 1)) {
+          if (index === 0) { return i - 1; }
+          index--;
+        }
+        if (isPrime(i + 1)) {
+          if (index === 0) { return i + 1; }
+          index--;
+        }
+      }
+      return 0;
+  }
+
+  function getConstant(primeIndex, cubeRoot) {
+    var v = Math.pow(getPrime(primeIndex), cubeRoot ? (1.0 / 3.0): 0.5);
+    v -= parseInt(String(v));
+    v *= 0x100000000;
+    return v >>> 0;
+  }
+
+  function join32(msg, start, end) {
+    var len = end - start;
+    var res = new Array(len / 4);
+    for (var i = 0, k = start; i < res.length; i++, k += 4) {
+      var w =(msg[k] << 24) | (msg[k + 1] << 16) | (msg[k + 2] << 8) | msg[k + 3];
+      res[i] = w >>> 0;
+    }
+    return res;
+  }
+
+  function split32(msg) {
+    var res = new Array(msg.length * 4);
+    for (var i = 0, k = 0; i < msg.length; i++, k += 4) {
+      var m = msg[i];
+      res[k] = m >>> 24;
+      res[k + 1] = (m >>> 16) & 0xff;
+      res[k + 2] = (m >>> 8) & 0xff;
+      res[k + 3] = m & 0xff;
+    }
+    return res;
+  }
+
+  function rotr32(w, b) {
+    return (w >>> b) | (w << (32 - b));
+  }
+
+  function sum32() {
+    var o = 0;
+    for (var i = 0; i < arguments.length; i++) { o += arguments[i]; }
+    return o >>> 0;
+  }
+
+  function s0_256(x) {
+    return rotr32(x, 2) ^ rotr32(x, 13) ^ rotr32(x, 22);
+  }
+
+  function s1_256(x) {
+    return rotr32(x, 6) ^ rotr32(x, 11) ^ rotr32(x, 25);
+  }
+
+  function g0_256(x) {
+    return rotr32(x, 7) ^ rotr32(x, 18) ^ (x >>> 3);
+  }
+
+  function g1_256(x) {
+    return rotr32(x, 17) ^ rotr32(x, 19) ^ (x >>> 10);
+  }
+
+
+  var K = [];
+  for (var i = 0; i < 64; i++) {
+    K.push(getConstant(i, true));
+  }
+  function SHA256() {
+
+    this.pending = null;
+    this.pendingTotal = 0;
+
+    this.blockSize = 512;
+    this.padLength = 64 / 8;
+
+    this._delta8 = this.blockSize / 8;
+    this._delta32 = this.blockSize / 32;
+
+    this.h = [ ];
+    for (var i = 0; i < 8; i++) { this.h.push(getConstant(i, false)); }
+
+    this.k = K
+
+    this.W = new Array(64);
+  }
+
+  SHA256.prototype.update = function update(msg, enc) {
+    if (!this.pending)
+      this.pending = msg;
+    else
+      this.pending = concat([ this.pending, msg ]);
+    this.pendingTotal += msg.length;
+
+    // Enough data, try updating
+    if (this.pending.length >= this._delta8) {
+      msg = this.pending;
+
+      // Process pending data in blocks
+      var r = msg.length % this._delta8;
+      this.pending = msg.slice(msg.length - r, msg.length);
+      if (this.pending.length === 0)
+        this.pending = null;
+
+      msg = join32(msg, 0, msg.length - r);
+      for (var i = 0; i < msg.length; i += this._delta32)
+        this._update(msg, i, i + this._delta32);
+    }
+
+    return this;
+  };
+
+  SHA256.prototype.digest = function digest() {
+    this.update(this._pad());
+    return split32(this.h);
+  };
+
+  SHA256.prototype._pad = function pad() {
+    var len = this.pendingTotal;
+    var bytes = this._delta8;
+    var k = bytes - ((len + this.padLength) % bytes);
+    var res = new Array(k + this.padLength);
+    res[0] = 0x80;
+    for (var i = 1; i < k; i++) { res[i] = 0; }
+
+    // Append length
+    len <<= 3;
+    for (var t = 8; t < this.padLength; t++)
+      res[i++] = 0;
+
+    res[i++] = 0;
+    res[i++] = 0;
+    res[i++] = 0;
+    res[i++] = 0;
+    res[i++] = (len >>> 24) & 0xff;
+    res[i++] = (len >>> 16) & 0xff;
+    res[i++] = (len >>> 8) & 0xff;
+    res[i++] = len & 0xff;
+
+    return res;
+  };
+
+  SHA256.prototype._update = function _update(msg, start) {
+    var W = this.W;
+
+    for (var i = 0; i < 16; i++) { W[i] = msg[start + i]; }
+    for (; i < W.length; i++) {
+      W[i] = sum32(g1_256(W[i - 2]), W[i - 7], g0_256(W[i - 15]), W[i - 16]);
+    }
+
+    var a = this.h[0];
+    var b = this.h[1];
+    var c = this.h[2];
+    var d = this.h[3];
+    var e = this.h[4];
+    var f = this.h[5];
+    var g = this.h[6];
+    var h = this.h[7];
+
+    for (i = 0; i < W.length; i++) {
+      var T1 = sum32(h, s1_256(e), (e & f) ^ ((~e) & g), this.k[i], W[i]);
+      var T2 = sum32(s0_256(a), (a & b) ^ (a & c) ^ (b & c));
+      h = g;
+      g = f;
+      f = e;
+      e = sum32(d, T1);
+      d = c;
+      c = b;
+      b = a;
+      a = sum32(T1, T2);
+    }
+
+    this.h[0] = sum32(this.h[0], a);
+    this.h[1] = sum32(this.h[1], b);
+    this.h[2] = sum32(this.h[2], c);
+    this.h[3] = sum32(this.h[3], d);
+    this.h[4] = sum32(this.h[4], e);
+    this.h[5] = sum32(this.h[5], f);
+    this.h[6] = sum32(this.h[6], g);
+    this.h[7] = sum32(this.h[7], h);
+  };
+
+  return function(message) {
+    return (new SHA256()).update(message).digest('hex');
+  }
+})();
+/***** END OF require('hash.js'); */
+
+/**
+ * var basex = require('base-x').sha256;
+ *
+ * This implementation is heavily based on base-x.
+ *
+ * Contributors:
+ *
+ * base-x encoding
+ * Forked from https://github.com/cryptocoinjs/bs58
+ * Originally written by Mike Hearn for BitcoinJ
+ * Copyright (c) 2011 Google Inc
+ * Ported to JavaScript by Stefan Thomas
+ * Merged Buffer refactorings from base58-native by Stephen Pair
+ * Copyright (c) 2013 BitPay Inc
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright base-x contributors (c) 2016
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ */
+
+var basex = function(ALPHABET) {
+  var ALPHABET_MAP = {}
+  var BASE = ALPHABET.length
+  var LEADER = ALPHABET.charAt(0)
+
+  // pre-compute lookup table
+  for (var i = 0; i < ALPHABET.length; i++) {
+    ALPHABET_MAP[ALPHABET.charAt(i)] = i;
+  }
+
+  function encode(source) {
+    if (source.length === 0) return ''
+
+    var digits = [0]
+    for (var i = 0; i < source.length; ++i) {
+      for (var j = 0, carry = source[i]; j < digits.length; ++j) {
+        carry += digits[j] << 8
+        digits[j] = carry % BASE
+        carry = (carry / BASE) | 0
+      }
+
+      while (carry > 0) {
+        digits.push(carry % BASE)
+        carry = (carry / BASE) | 0
+      }
+    }
+
+    var string = ''
+
+    // deal with leading zeros
+    for (var k = 0; source[k] === 0 && k < source.length - 1; ++k) string += LEADER
+
+    // convert digits to a string
+    for (var q = digits.length - 1; q >= 0; --q) string += ALPHABET[digits[q]]
+
+    return string
+  }
+
+  function decodeUnsafe (string) {
+    if (typeof string !== 'string') throw new TypeError('Expected String')
+    var bytes = [];
+    if (string.length === 0) { return new Uint8Array(bytes); }
+
+    bytes.push(0);
+    for (var i = 0; i < string.length; i++) {
+      var value = ALPHABET_MAP[string[i]]
+      if (value === undefined) return
+
+      for (var j = 0, carry = value; j < bytes.length; ++j) {
+        carry += bytes[j] * BASE
+        bytes[j] = carry & 0xff
+        carry >>= 8
+      }
+
+      while (carry > 0) {
+        bytes.push(carry & 0xff)
+        carry >>= 8
+      }
+    }
+
+    // deal with leading zeros
+    for (var k = 0; string[k] === LEADER && k < string.length - 1; ++k) {
+      bytes.push(0)
+    }
+
+    return new Uint8Array(bytes.reverse())
+  }
+
+  function decode (string) {
+    var buffer = decodeUnsafe(string)
+    if (buffer) return buffer
+    throw new Error('Non-base' + BASE + ' character')
+  }
+
+  return {
+    encode: encode,
+    decode: decode
+  }
+}
+
+var base32 = basex("abcdefghijklmnopqrstuvwxyz234567");
+var base58 = basex("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz");
+
+/***** END OF require('base-x'); */
+
+
+/**
+ * This implementation is heavily based on utf.js.
+ *
+ * See: http://www.onicos.com/staff/iz/amuse/javascript/expert/utf.txt
+ *
+ * Note: We do not care about overlong or otherwise invalid sequences; that's
+ *       the browsers problem and we don't want to make any assumptions.
+ *
+ * utf.js
+ *
+ * UTF-8 <=> UTF-16 convertion
+ *
+ * Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
+ * Version: 1.0
+ * LastModified: Dec 25 1999
+ * This library is free.  You can redistribute it and/or modify it.
+ */
+
+function toUtf8String(array) {
+  var out, i, len, c;
+  var char2, char3;
+
+  out = "";
+  len = array.length;
+  i = 0;
+  while (i < len) {
+    c = array[i++];
+    switch (c >> 4)
+    { 
+      case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
+        // 0xxxxxxx
+        out += String.fromCharCode(c);
+        break;
+      case 12: case 13:
+        // 110x xxxx   10xx xxxx
+        char2 = array[i++];
+        out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
+        break;
+      case 14:
+        // 1110 xxxx  10xx xxxx  10xx xxxx
+        char2 = array[i++];
+        char3 = array[i++];
+        out += String.fromCharCode(((c & 0x0F) << 12) |
+                                   ((char2 & 0x3F) << 6) |
+                                   ((char3 & 0x3F) << 0));
+        break;
+    }
+  }    
+  return out;
+}
+
+/***** END OF utf.js */
+
+
+/**
+ * Meeseeks Bootstrap
+ *
+ * Copyright 2018 Richard Moore <me@ricmoo.com>
+ *                Yuet Loo Wong <yuet.wong@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+var TYPE_PBNODE = 1;
+var TYPE_LINK = 2;
+var TYPE_UNIXFS = 3;
+
+function parseProtoBuf(data, type) {
+  var result = {};
+  var offset = 0;
+
+  var names = null;
+  var repeated = {};
+  switch(type) {
+      case TYPE_PBNODE: names = [ 'data', 'links' ]; repeated = { links: true }; break;
+      case TYPE_LINK: names = [ 'hash', 'n', 'ts' ]; break;
+      case TYPE_UNIXFS: names = [ 'type', 'data', 'fs', 'bs', 'ht', 'fo' ]; break;
+      default: throw new Error('bad type');
+  }
+
+  var readVarInt = function() {
+    var v = [ data[offset] & 0x7f ];
+    while (data[offset++] & 0x80) {
+      if (offset === data.length) { throw new Error('buffer overrun'); }
+      v.unshift(data[offset] & 0x7f);
+    }
+    var result = 0;
+    v.forEach(function(v) { result = result * 128 + v; });
+    return result;
+  }
+
+  while (offset < data.length) {
+    var v = readVarInt();
+    var tag = names[(v >>> 3) - 1];
+    if (!tag) { throw new Error('unknown field - ' + v); }
+    switch (v & 7) {
+
+        // varint
+        case 0:
+          result[tag] = readVarInt();
+          break;
+
+        // bytes
+        case 2: {
+          var length = readVarInt();
+          if (offset + length > data.length) { throw new Error("buffer overrun"); }
+          if (repeated[tag]) {
+            if (result[tag]) {
+              result[tag].push(data.slice(offset, offset + length));
+            } else {
+              result[tag] = [ data.slice(offset, offset + length) ];
+            }
+          } else {
+            result[tag] = data.slice(offset, offset + length);
+          }
+          offset += length;
+          break;
+        }
+
+        default:
+          throw new Error('unsupported type - ' + tag);
+    }
+  }
+
+  return result;
+}
+
+function parseData(data, type) {
+  var result = parseProtoBuf(data, type);
+
+  switch (type) {
+      case TYPE_PBNODE: {
+        if (result.links) {
+          var promises = [];
+          result.links.forEach(function(hash) {
+            promises.push(parseData(hash, TYPE_LINK));
+          });
+          return Promise.all(promises).then(function(blocks) {
+            return concat(blocks);
+          });
+        }
+        if (result.data && result.data.constructor === Uint8Array) {
+          return Promise.resolve(parseData(result.data, TYPE_UNIXFS));
+        }
+      }
+      case TYPE_LINK:
+        if (result.hash.length !== 34) { throw new Error('unsupported hash'); }
+        return fetchIpfs(base58.encode(result.hash));
+      case TYPE_UNIXFS:
+        if (result.type !== 2) { throw new Error('unsupported type'); }
+        if (!result.data) { return new Uint8Array([]); }
+        if (result.data.constructor !== Uint8Array) { throw new Error('bad Data'); }
+        return Promise.resolve(result.data);
+  }
+
+  throw new Error('unsupported type');
+}
+
+function fetchIpfs(multihash) {
+  return fetch("https://ipfs.infura.io:5001/api/v0/block/get?arg=" + multihash).then(function(block) {
+    return block.arrayBuffer().then(function(data) {
+      data = new Uint8Array(data);
+      if (hexlify(sha256(data)) !== hexlify(base58.decode(multihash).slice(2))) {
+        throw new Error('hash mismatch');
+      }
+      return parseData(data, TYPE_PBNODE);
+    });
+  });
+}
+
+var readyPromise = new Promise(function(resolve) {
+  window.addEventListener('DOMContentLoaded', resolve, false);
+});
+
+function loadHtml(htmlCode) {
+  return readyPromise.then(function() {
+    document.open("text/html", "replace");
+    document.write(htmlCode);
+    document.close();
+    if (window.app) { setTimeout(function() { window.app.emit('ready'); }, 0); }
+  });
+};
+
+var Zeros = new Uint8Array(fill([], 32, 0));;
+
+var Partition = new RegExp("^((.*)\\.)?([^.]+)$");
+
+var UseSTD3ASCIIRules = new RegExp("^[a-z0-9.-]*$");
+
+function arrayify(value) {
+    var result = [];
+    for (var i = 0; i < value.length; i += 2) {
+       result.push(parseInt(value.substr(i, 2), 16));
+    }
+    return result;
+}
+
+var HexCharacters = '0123456789abcdef';
+
+function hexlify(value) {
+    var result = [];
+    for (var i = 0; i < value.length; i++) {
+         var v = value[i];
+         result += HexCharacters[(v & 0xf0) >> 4] + HexCharacters[v & 0x0f];
+    }
+    return result;
+}
+
+function toBytes(string) {
+    var result = [];
+    for (var i = 0; i < string.length; i++) {
+        result.push(string.charCodeAt(i));
+    }
+    return new Uint8Array(result);
+}
+
+function namehash(name) {
+    name = name.toLowerCase();
+
+    // Supporting the full UTF-8 space requires additional (and large)
+    // libraries, so for now we simply do not support them.
+    // It should be fairly easy in the future to support systems with
+    // String.normalize, but that is future work.
+    if (!name.match(UseSTD3ASCIIRules) || name.substring(0, 2) === '0x') {
+        throw new Error('contains invalid UseSTD3ASCIIRules characters');
+    }
+
+    var result = Zeros;
+    while (name.length) {
+        var partition = name.match(Partition);
+        var label = toBytes(partition[3]);
+        result = keccak256(concat([result, keccak256(label)]));
+
+        name = partition[2] || '';
+    }
+
+    return result;
+}
+
+function callEtherscan(address, data) {
+    var url = "https://api.etherscan.io/api?module=proxy&action=eth_call&to=" + address + "&data=" + data + "&tag=latest"
+    return fetch(url).then(function(body) {
+        return body.text().then(function(body) {
+            var result = JSON.parse(body);
+            return result.result;
+        });
+    }, function(error) {
+        console.log(error);
+    });
+}
+
+function getMeeseeks(name) {
+  var hash = hexlify(namehash(name));
+
+  // ENS.resolver(hash)
+  return Promise.all([
+    callEtherscan("0x314159265dd8dbb310642f98f50c066173c1259b", "0x0178b8bf" + hash)
+  ]).then(function(results) {
+    // @TODO: Check all results match
+    var result = results[0];
+    if (result.match(/^0x0{64}$/) || !result.match(/^0x0{24}/)) {
+      throw new Error('no ENS entry found');
+    }
+    var resolver = '0x' + result.substring(26);
+    var data = fill([ ], 64, 0);
+    data[31] = 0x40;
+    data[63] = 0x10;
+    data = hexlify(data);
+    data = "0x59d1d43c" + hash + data + "766e642e6170702e6d65657365656b73" + hexlify(fill([], 32, 0))
+    return Promise.all([
+      callEtherscan(resolver, data)
+    ]).then(function(results) {
+      var match = results[0].match(/^0x0{62}200{62}([0-9a-f]{2})([0-9a-f]*)$/i);
+      if (!match || (parseInt(match[1]) * 2) > match[2].length) { return null; }
+      var result = String.fromCharCode.apply(null, arrayify(match[2].substring(0, 2 * parseInt(match[1], 16))));
+      if (!result.match(/^[A-Z0-9]+$/i)) { return null; }
+      return result;
+    });
+  });
+}
+
+log("Look at me. I'm Mr. Meeseeks.app!");
+
+(function() {
+  var comps = location.host.split(':')[0].split('.');
+  if (comps.length === 3 && comps[1] === 'meeseeks' && comps[2] === 'app') {
+    if (comps[0].substring(0, 2) === '0x') {
+      log("Using explicit multihash: " + comps[0]);
+      var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(comps[0].substring(2)) ]));
+      return Promise.resolve(multihash);
+    } else {
+      log("Querying ENS...");
+      return getMeeseeks(comps[0] + ".eth").then(function(multihash) {
+        log('Found ENS:vnd.meeseeks.app: : ' + multihash);
+        return multihash;
+      });;
+    }
+  }
+  if (comps.length === 2 && comps[1] === 'meeseeks' && comps[2] === 'app') {
+      return Promise.resolve('@TODO: Root multihash');
+  }
+  return Promise.resolve('@TODO: Error Multihash...');
+})().then(function(multihash) {
+  log("Fetching and Verifying IPFS Content...");
+  return fetchIpfs(multihash, TYPE_PBNODE).then(function(data) {
+    log("Verified!");
+    log("Existance is pain! Good-Bye!");
+    setTimeout(function() {
+      loadHtml(toUtf8String(data));
+    }, 0);
+  });
+});
+
+})(window);</script>
+    </body>
+</html>
