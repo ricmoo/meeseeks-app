@@ -1,20 +1,31 @@
 {
-  "name": "meeseeks",
+  "name": "meeseeks-cli",
   "version": "0.0.1",
   "description": "The meeseeks library.",
   "main": "meeseeks.js",
+  "bin": {
+    "meeseeks": "./bin/meeseeks.js"
+  },
   "scripts": {
     "build": "./flatten.py",
     "test": "phantomjs --web-security=false ./node_modules/mocha-phantomjs-core/mocha-phantomjs-core.js ./tests/test.html"
   },
   "keywords": [
-    "Meeseeks"
+    "Meeseeks",
+    "IPFS",
+    "ENS",
+    "Ethereum"
   ],
   "author": "Richard Moore <me@ricmoo.com>",
   "contributors": [
     "Richard Moore <me@ricmoo.com>",
     "Yuet Loo Wong <yuet.wong@gmail.com>"
   ],
+  "dependencies": {
+    "ethers": "^4.0.0",
+    "ethers-cli": "5.0.0-beta.1",
+    "ipfs-api": "^25.0.0"
+  },
   "devDependencies": {
     "mocha-phantomjs-core": "2.1.2",
     "uglify-js": "^3.4.9"
