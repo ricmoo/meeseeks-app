@@ -11,6 +11,10 @@ const ipfs = (function() {
     const ipfsAPI = require('ipfs-api');
     return ipfsAPI('ipfs.infura.io', '5001', { protocol: 'https' });
 })();
+const basex = require('base-x');
+
+const base32 = new basex("abcdefghijklmnopqrstuvwxyz234567");
+const base58 = new basex("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz");
 
 let options = {
     _accounts: true,
@@ -36,9 +40,11 @@ PublishPlugin.prototype.prepare = function(opts) {
 }
 PublishPlugin.prototype.run = function() {
     let content = fs.readFileSync(this.filename);
-    console.log('Publishing: ', this.filename, '(' + content.length + ' bytes)');
+    console.log('Publishing:', this.filename, '(' + content.length + ' bytes)');
     return ipfs.files.add(content).then((results) => {
-        console.log('  Hash:', results[0].hash);
+        console.log('  Hash: ' + results[0].hash);
+        let subdomain = base32.encode(base58.decode(results[0].hash).slice(2));
+        console.log('  URL:  https://0xg' + subdomain + '.meeseeks.app');
     });
 }
 plugins['publish'] = new PublishPlugin();
