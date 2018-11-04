@@ -4,10 +4,69 @@
 
 'use strict';
 
-function log(message) {
-  console.log(message);
-  document.getElementById('_mo').textContent += message + "\n";
+function now() {
+  return (new Date()).getTime();
 }
+
+var bumps = '';
+var spinner = "\u25CF\u2219";
+var t0 = now();
+function drawBumps() {
+  document.getElementById('_mo').textContent = "loading secure content... (meeseeks.app bootstrap)\n" +
+     bumps + spinner[parseInt(String((now() - t0) / 500)) % spinner.length];
+}
+
+var bumpTimer = setInterval(function() {
+  drawBumps();
+}, 250);
+
+function bump() {
+  bumps += '\u25CF';
+  drawBumps();
+}
+
+/*
+var log = (function() {
+  var current = 0;
+  var target = 0;
+  var delta = 0;
+  var timer = null;
+
+  var output = document.getElementById('_mo');
+
+  function show(message, percent) {
+    percent = String(parseInt(String(percent)));
+    while (percent.length < 2) { percent = ' ' + percent; }
+    var line = "Loading " + percent + "% (" + message + ")";
+    if (!output) { return; }
+    output.textContent = line;
+  }
+
+  show("preparing...", 0);
+
+  return function(message, percent, note) {
+    console.log(message);
+
+    if (percent == null) { return; }
+
+    if (timer) { clearInterval(timer); }
+
+    timer = setInterval(function() {
+      current += delta;
+      if (current >= target) {
+        current = target;
+        clearInterval(timer);
+        timer = null;
+      }
+      show(note, current);
+    }, 50);
+
+    show(note, current);
+    delta = (percent - current) / 20;
+    target = percent;
+  }
+})();
+*/
 
 function concat(array) {
   var size = 0;
@@ -748,12 +807,17 @@ function parseData(data, type) {
 }
 
 function fetchIpfs(multihash) {
-  return fetch("https://ipfs.infura.io:5001/api/v0/block/get?arg=" + multihash).then(function(block) {
+  let url = "https://ipfs.infura.io:5001/api/v0/block/get?arg=" + multihash;
+  console.log("Fetching: " + url);
+  return fetch(url).then(function(block) {
+    bump();
     return block.arrayBuffer().then(function(data) {
       data = new Uint8Array(data);
-      if (hexlify(sha256(data)) !== hexlify(base58.decode(multihash).slice(2))) {
+      let hash = hexlify(sha256(data));
+      if (hash !== hexlify(base58.decode(multihash).slice(2))) {
         throw new Error('hash mismatch');
       }
+      console.log("Verified: 0x" + hash);
       return parseData(data, TYPE_PBNODE);
     });
   });
@@ -847,6 +911,7 @@ function getMeeseeks(name) {
   return Promise.all([
     callEtherscan("0x314159265dd8dbb310642f98f50c066173c1259b", "0x0178b8bf" + hash)
   ]).then(function(results) {
+    bump();
     // @TODO: Check all results match
     var result = results[0];
     if (result.match(/^0x0{64}$/) || !result.match(/^0x0{24}/)) {
@@ -861,6 +926,7 @@ function getMeeseeks(name) {
     return Promise.all([
       callEtherscan(resolver, data)
     ]).then(function(results) {
+      bump();
       var match = results[0].match(/^0x0{62}200{62}([0-9a-f]{2})([0-9a-f]*)$/i);
       if (!match || (parseInt(match[1]) * 2) > match[2].length) { return null; }
       var result = String.fromCharCode.apply(null, arrayify(match[2].substring(0, 2 * parseInt(match[1], 16))));
@@ -870,42 +936,51 @@ function getMeeseeks(name) {
   });
 }
 
-log("Look at me. I'm Mr. Meeseeks.app!");
+bump();
+
+console.log("Look at me! I'm Meeseeks.app!");
 
 (function() {
-  var comps = location.host.split(':')[0].split('.');
+  let hostname = location.host.split(':')[0]
+  console.log("Hostname: " + hostname);
+  var comps = hostname.split('.');
   if (comps.length === 3 && comps[1] === 'meeseeks' && comps[2] === 'app') {
     if (comps[0].substring(0, 3) === '0xg') {
-      log("Using explicit domain multihash: " + comps[0]);
+      console.log("Found Base32 multihash: " + comps[0], 10);
       var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(comps[0].substring(3)) ]));
       return Promise.resolve(multihash);
     } else {
-      log("Querying ENS...");
-      return getMeeseeks(comps[0] + ".eth").then(function(multihash) {
-        log('Found ENS:vnd.meeseeks.app: : ' + multihash);
+      var name = comps[0] + '.eth';
+      console.log("Found ENS: " + name);
+      return getMeeseeks(name).then(function(multihash) {
+        console.log('Found ENS:vnd.meeseeks.app: ' + multihash);
         return multihash;
       });;
     }
   }
+
   if (comps.length === 2 && comps[0] === 'meeseeks' && comps[1] === 'app') {
       // meeseeks-app/index.html
-      return Promise.resolve('QmXVRgbLQheZX6JYBHHfhLkXRR1wzha7bawXH44mDdCVG7');
+      console.log('Using Root multihash');
+      return Promise.resolve("QmTdeKoDvVLhv661g28yf6AX8Qg2WfkXPWWNHZyrfsTkEr");
   }
 
-   // meeseeks-app/error.html
-  return Promise.resolve('QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq');
+  // meeseeks-app/error.html
+  console.log('Using Error multihash');
+  return Promise.resolve("QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq");
+
 })().then(function(multihash) {
-  log("Fetching and Verifying IPFS Content: " + multihash);
+  console.log("Found multihash: " + multihash);
   return fetchIpfs(multihash, TYPE_PBNODE).then(function(data) {
-    log("Verified!");
-    log("Existance is pain! Good-Bye!");
+    console.log("Existance is pain! Good-Bye!");
     setTimeout(function() {
+      clearInterval(bumpTimer);
       loadHtml(toUtf8String(data));
     }, 0);
   });
 }).catch(function(error) {
-  log("Error: " + error.message);
-});;
+  //log("Error: " + error.message);
+});
 
 })(window);</script>
     </body>
