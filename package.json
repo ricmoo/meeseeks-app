@@ -22,6 +22,7 @@
     "Yuet Loo Wong <yuet.wong@gmail.com>"
   ],
   "dependencies": {
+    "base-x": "^3.0.5",
     "ethers": "^4.0.0",
     "ethers-cli": "5.0.0-beta.1",
     "ipfs-api": "^25.0.0"
