@@ -1,0 +1,100 @@
+<html>
+  <head>
+    <title>About - meeseeks.app</title>
+    <style type="text/css">
+      html {
+        margin-left: 0;
+        margin-right: 0;
+      }
+      body {
+        font-family: sans-serif;
+        font-size: 1.2em;
+        margin-left: 0;
+        margin-right: 0;
+      }
+      .content {
+        position: relative;
+        margin-left: 50%;
+        transform: translate(-50%, 0);
+        width: 800px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <h1>Welcome to meeseeks.app!</h1>
+      <p>
+        This is still very much a work in progress, but we will try to get
+        this <i>About Us</i> page filled with all sorts of useful details
+        as soon as possible.
+      </p>
+      <p>
+        The <a href="https://meeseeks.app">meeseeks.app</a> service uses a
+        simple static file, hosted on a CDN designed to allow websites to
+        easily and safely host simple websites from IPFS, optionally using
+        ENS to provide a more human-friendly name, than an IPFS multihash.
+      </p>
+      <h2>What is IPFS?</h2>
+      <p>
+        The <a href="https://ipfs.io">Inter-Planetary File System (IPFS)</a> is a
+        large, distributed and decentralized storage service, which allows anyone
+        to freely publish content. Anyone may run a node and contribute to the
+        system, which is where the storage comes from, people around the world
+        dedicating a small portion of their computer's hard drive and bandwidth
+        to the network as a whole.
+      </p>
+      <p>
+        The content is addressed by the actual contents, so a file with the
+        same contents, has the same "multihash" (think filename). This means
+        if your neighbour recently watched a cat video on YouTube, they likely
+        still have a copy, so when you want to watch it, it could be easily
+        downloaded from your computer, trustlessly through the multihash,
+        instead of going all the way to your ISP, then to their ISP and 18
+        hops later, reach google, for the long trip back.
+      </p>
+      <h2>What is ENS?</h2>
+      <p>
+        The <a href="https://ens.domains">Ethereum Naming System (ENS)</a> is a
+        Smart Contract and eco-system built on top of the
+        <a href="https://ethereum.org">Ethereum</a> blockchain, which allows
+        anyone to trustlessly purchase a name, which can be thought of a bit like
+        a Domain Name.
+      </p>
+      <p>
+        Once you have an ENS name, no one can take it away or censor you, and it
+        can be used to trustless associate any information about you that you wish.
+      </p>
+      <h2>How does meeseeks.app work?</h2>
+      <p>
+        The <a href="https://meeseeks.app">Meeseeks App</a> website was written as
+        a project for the <a href="https://github.com/status-im/CryptoLife/tree/ricloo/project">Status #cryptolife hackathon</a>
+        and came in first for the "Infrastructure Track".
+      </p>
+      <p>
+        It aims to simplify using IPFS for websites, but also improves the security
+        and safety of using IPFS by providing each site with its own domain name,
+        which allows your site to benefit from the decades of work that internet
+        browsers have included to protect you from cross-origin attacks.
+      </p>
+      <p>
+        When a user accesses your website, for example <a href="https://pac-txt.meeseeks.app">pac-txt.meeseeks.app</a>,
+        a static bootstrap HTML page is loaded. Everyone gets the same small bootstrap loader, which
+        then performs all the lookups, downloading and verification in the users browser. The
+        steps the bootstrap performs once loaded in the users browser are:
+      </p>
+      <ol>
+        <li>Check the domain name (<code>location.host</code>); if it is a multihash sub-domain, skip to step 3.</li>
+        <li>Otherwise, the sub-domain is converted to an ENS name (e.g. <code>pac-txt.eth</code>) and resolved against the ENS Smart Contract on Ethereum.</li>
+        <li>The Multihash is fetched from IPFS; a multihash may consist of links to additional multihashes if it is a large file.</li>
+        <li>Each multihash is verified against the data fetched from IPFS, and then stitched together.</li>
+        <li>The bootstrap page then uses <code>codument.open</code> to destory and replace itself with the content downloaded from IPFS.</li>
+      </ol>
+      <h2>Links?</h2>
+      <ul>
+        <li>Our <a href="https://github.com/ricmoo/meeseeks-app">GitHub Repository</a> contains all the code (fully opern source, under the MIT license)</li>
+        <li>The <a href="https://ipfs.io">IPFS</a> website is a great place to start learning more about IPFS</li>
+        <li>The <a href="https://ens.domains">ENS Domains</a> website can help you get and set up you own ENS name</li>
+      </ul>
+    </div>
+  </body>
+</html>

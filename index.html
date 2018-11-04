@@ -600,7 +600,7 @@ function toUtf8String(array) {
   while (i < len) {
     c = array[i++];
     switch (c >> 4)
-    { 
+    {
       case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
         // 0xxxxxxx
         out += String.fromCharCode(c);
@@ -619,7 +619,7 @@ function toUtf8String(array) {
                                    ((char3 & 0x3F) << 0));
         break;
     }
-  }    
+  }
   return out;
 }
 
@@ -875,9 +875,9 @@ log("Look at me. I'm Mr. Meeseeks.app!");
 (function() {
   var comps = location.host.split(':')[0].split('.');
   if (comps.length === 3 && comps[1] === 'meeseeks' && comps[2] === 'app') {
-    if (comps[0].substring(0, 2) === '0x') {
-      log("Using explicit multihash: " + comps[0]);
-      var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(comps[0].substring(2)) ]));
+    if (comps[0].substring(0, 3) === '0xg') {
+      log("Using explicit domain multihash: " + comps[0]);
+      var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(comps[0].substring(3)) ]));
       return Promise.resolve(multihash);
     } else {
       log("Querying ENS...");
@@ -887,12 +887,15 @@ log("Look at me. I'm Mr. Meeseeks.app!");
       });;
     }
   }
-  if (comps.length === 2 && comps[1] === 'meeseeks' && comps[2] === 'app') {
-      return Promise.resolve('@TODO: Root multihash');
+  if (comps.length === 2 && comps[0] === 'meeseeks' && comps[1] === 'app') {
+      // meeseeks-app/index.html
+      return Promise.resolve('QmXVRgbLQheZX6JYBHHfhLkXRR1wzha7bawXH44mDdCVG7');
   }
-  return Promise.resolve('@TODO: Error Multihash...');
+
+   // meeseeks-app/error.html
+  return Promise.resolve('QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq');
 })().then(function(multihash) {
-  log("Fetching and Verifying IPFS Content...");
+  log("Fetching and Verifying IPFS Content: " + multihash);
   return fetchIpfs(multihash, TYPE_PBNODE).then(function(data) {
     log("Verified!");
     log("Existance is pain! Good-Bye!");
@@ -900,7 +903,9 @@ log("Look at me. I'm Mr. Meeseeks.app!");
       loadHtml(toUtf8String(data));
     }, 0);
   });
-});
+}).catch(function(error) {
+  log("Error: " + error.message);
+});;
 
 })(window);</script>
     </body>

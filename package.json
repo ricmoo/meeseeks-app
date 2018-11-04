@@ -4,20 +4,20 @@
   "description": "The meeseeks library.",
   "main": "meeseeks.js",
   "scripts": {
-    "build": "browserify ./meeseeks.js | uglifyjs > ./dist/meeseeks.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "./flatten.py",
+    "test": "phantomjs --web-security=false ./node_modules/mocha-phantomjs-core/mocha-phantomjs-core.js ./tests/test.html"
   },
   "keywords": [
     "Meeseeks"
   ],
   "author": "Richard Moore <me@ricmoo.com>",
-  "license": "MIT",
-  "dependencies": {
-    "browserify": "^16.2.3",
-    "ethers": "^4.0.7",
-    "fetch": "^1.1.0",
-    "js-sha3": "^0.8.0",
-    "uglify-es": "^3.3.9",
+  "contributors": [
+    "Richard Moore <me@ricmoo.com>",
+    "Yuet Loo Wong <yuet.wong@gmail.com>"
+  ],
+  "devDependencies": {
+    "mocha-phantomjs-core": "2.1.2",
     "uglify-js": "^3.4.9"
-  }
+  },
+  "license": "MIT"
 }
