@@ -8,7 +8,7 @@ html = open('index.html').read();
 
 def repl(match):
     file('.tmp.js', 'w').write(match.group(1));
-    script = subprocess.check_output(['./node_modules/.bin/uglifyjs', '-m', '--toplevel', '.tmp.js']).decode('utf8')
+    script = subprocess.check_output(['./node_modules/.bin/uglifyjs', '-b', 'ascii_only=true,beautify=false', '-m', '--toplevel', '.tmp.js']).decode('utf8')
     return "<script>" + script + "</script>";
 
 minified = re.sub("<script>(.*)</script>", repl, html, 1, re.DOTALL);
