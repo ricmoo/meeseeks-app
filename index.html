@@ -807,13 +807,13 @@ function parseData(data, type) {
 }
 
 function fetchIpfs(multihash) {
-  let url = "https://ipfs.infura.io:5001/api/v0/block/get?arg=" + multihash;
+  var url = "https://ipfs.infura.io:5001/api/v0/block/get?arg=" + multihash;
   console.log("Fetching: " + url);
   return fetch(url).then(function(block) {
     bump();
     return block.arrayBuffer().then(function(data) {
       data = new Uint8Array(data);
-      let hash = hexlify(sha256(data));
+      var hash = hexlify(sha256(data));
       if (hash !== hexlify(base58.decode(multihash).slice(2))) {
         throw new Error('hash mismatch');
       }
@@ -941,7 +941,7 @@ bump();
 console.log("Look at me! I'm Meeseeks.app!");
 
 (function() {
-  let hostname = location.host.split(':')[0]
+  var hostname = location.host.split(':')[0]
   console.log("Hostname: " + hostname);
   var comps = hostname.split('.');
   if (comps.length === 3 && comps[1] === 'meeseeks' && comps[2] === 'app') {
