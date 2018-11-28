@@ -1,6 +1,6 @@
 {
   "name": "meeseeks-cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "The meeseeks library.",
   "main": "meeseeks.js",
   "bin": {
@@ -25,7 +25,8 @@
     "base-x": "^3.0.5",
     "ethers": "^4.0.0",
     "ethers-cli": "5.0.0-beta.1",
-    "ipfs-api": "^25.0.0"
+    "ipfs-api": "^25.0.0",
+    "uglifycss": "0.0.29"
   },
   "devDependencies": {
     "mocha-phantomjs-core": "2.1.2",
