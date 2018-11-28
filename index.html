@@ -1,19 +1,26 @@
 <html>
+    <head><title>loading...</title></head>
     <body><div id="_mo" style="font-family: monospace; font-size: 18px; padding: 20px; white-space: pre;"></div>
         <script>(function(global) {
 
 'use strict';
+
+var Config = {
+    error: "QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq",
+    root: "QmTdeKoDvVLhv661g28yf6AX8Qg2WfkXPWWNHZyrfsTkEr",
+    spinner: "\u25CF\u2219",
+    supportRawHash: true
+};
 
 function now() {
   return (new Date()).getTime();
 }
 
 var bumps = '';
-var spinner = "\u25CF\u2219";
 var t0 = now();
 function drawBumps() {
   document.getElementById('_mo').textContent = "loading secure content... (meeseeks.app bootstrap)\n" +
-     bumps + spinner[parseInt(String((now() - t0) / 500)) % spinner.length];
+     bumps + Config.spinner[parseInt(String((now() - t0) / 500)) % Config.spinner.length];
 }
 
 var bumpTimer = setInterval(function() {
@@ -22,51 +29,9 @@ var bumpTimer = setInterval(function() {
 
 function bump() {
   bumps += '\u25CF';
+  if ((bumps.length % 40) === 0) { bumps += '\n'; }
   drawBumps();
 }
-
-/*
-var log = (function() {
-  var current = 0;
-  var target = 0;
-  var delta = 0;
-  var timer = null;
-
-  var output = document.getElementById('_mo');
-
-  function show(message, percent) {
-    percent = String(parseInt(String(percent)));
-    while (percent.length < 2) { percent = ' ' + percent; }
-    var line = "Loading " + percent + "% (" + message + ")";
-    if (!output) { return; }
-    output.textContent = line;
-  }
-
-  show("preparing...", 0);
-
-  return function(message, percent, note) {
-    console.log(message);
-
-    if (percent == null) { return; }
-
-    if (timer) { clearInterval(timer); }
-
-    timer = setInterval(function() {
-      current += delta;
-      if (current >= target) {
-        current = target;
-        clearInterval(timer);
-        timer = null;
-      }
-      show(note, current);
-    }, 50);
-
-    show(note, current);
-    delta = (percent - current) / 20;
-    target = percent;
-  }
-})();
-*/
 
 function concat(array) {
   var size = 0;
@@ -117,14 +82,26 @@ function fill(array, length, value, left) {
  */
 var keccak256 = (function() {
 
-  var HEX_CHARS = '0123456789abcdef'.split('');
-  var KECCAK_PADDING = [1, 256, 65536, 16777216];
+  var roundConstantInfo = "10J0NP`PO0Q0iPEP>0<0e0V0o0?PMPCPBP8PF0VPiPHPQ0dP";
+
+  function getRoundConstant(index) {
+    var rc = roundConstantInfo.charCodeAt(index) - 48;
+    var result = 0;
+    for (var i = 0; i < 7; i++) {
+      if (rc & (1 << i)) {
+        result += Math.pow(2, (1 << i) - 1);
+      }
+    }
+    return result;
+  }
+
+  var RC = [];
+  for (var i = 0; i < 48; i++) {
+    RC.push(getRoundConstant(i));
+  }
+
+  var KECCAK_PADDING = [1, 256, 1<<16, 1<<24];
   var SHIFT = [0, 8, 16, 24];
-  var RC = [1, 0, 32898, 0, 32906, 2147483648, 2147516416, 2147483648, 32907, 0, 2147483649,
-            0, 2147516545, 2147483648, 32777, 2147483648, 138, 0, 136, 0, 2147516425, 0,
-            2147483658, 0, 2147516555, 0, 139, 2147483648, 32905, 2147483648, 32771,
-            2147483648, 32770, 2147483648, 128, 2147483648, 32778, 0, 2147483658, 2147483648,
-            2147516545, 2147483648, 32896, 2147483648, 2147483649, 0, 2147516424, 2147483648];
 
   function Keccak(bits, padding, outputBits) {
     this.blocks = [];
@@ -768,6 +745,7 @@ function parseProtoBuf(data, type) {
         }
 
         default:
+          console.log('unsupported type - ' + tag);
           throw new Error('unsupported type - ' + tag);
     }
   }
@@ -794,7 +772,7 @@ function parseData(data, type) {
         }
       }
       case TYPE_LINK:
-        if (result.hash.length !== 34) { throw new Error('unsupported hash'); }
+        if (result.hash.length !== 34) { throw new Error('unsupported hash', result.hash); }
         return fetchIpfs(base58.encode(result.hash));
       case TYPE_UNIXFS:
         if (result.type !== 2) { throw new Error('unsupported type'); }
@@ -808,6 +786,7 @@ function parseData(data, type) {
 
 function fetchIpfs(multihash) {
   var url = "https://ipfs.infura.io:5001/api/v0/block/get?arg=" + multihash;
+  //var url = "https://ipfs.io/api/v0/block/get?arg=" + multihash;
   console.log("Fetching: " + url);
   return fetch(url).then(function(block) {
     bump();
@@ -817,7 +796,7 @@ function fetchIpfs(multihash) {
       if (hash !== hexlify(base58.decode(multihash).slice(2))) {
         throw new Error('hash mismatch');
       }
-      console.log("Verified: 0x" + hash);
+      console.log("Verified: " + multihash + " => 0x" + hash);
       return parseData(data, TYPE_PBNODE);
     });
   });
@@ -899,8 +878,6 @@ function callEtherscan(address, data) {
             var result = JSON.parse(body);
             return result.result;
         });
-    }, function(error) {
-        console.log(error);
     });
 }
 
@@ -917,35 +894,41 @@ function getMeeseeks(name) {
     if (result.match(/^0x0{64}$/) || !result.match(/^0x0{24}/)) {
       throw new Error('no ENS entry found');
     }
+
+    // Get the resolver address from the response
     var resolver = '0x' + result.substring(26);
-    var data = fill([ ], 64, 0);
-    data[31] = 0x40;
-    data[63] = 0x10;
-    data = hexlify(data);
-    data = "0x59d1d43c" + hash + data + "766e642e6170702e6d65657365656b73" + hexlify(fill([], 32, 0))
+
+    // getContenthash(bytes32)
+    // See: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1577.md
+    var data = '0xbc1c58d1' + hash;
+
     return Promise.all([
-      callEtherscan(resolver, data)
+      callEtherscan(resolver, data),
+      // content(bytes32 nodehash) - How do I fetch bzz content?
+      //callEtherscan(resolver, "0x2dff6941" + hash),
+      // multihash(bytes32 nodehash) - EIP 1062
+      //callEtherscan(resolver, "0xe89401a1" + hash),
     ]).then(function(results) {
       bump();
       var match = results[0].match(/^0x0{62}200{62}([0-9a-f]{2})([0-9a-f]*)$/i);
-      if (!match || (parseInt(match[1]) * 2) > match[2].length) { return null; }
-      var result = String.fromCharCode.apply(null, arrayify(match[2].substring(0, 2 * parseInt(match[1], 16))));
-      if (!result.match(/^[A-Z0-9]+$/i)) { return null; }
-      return result;
+      if (!match || (parseInt(match[1], 16) * 2) > match[2].length) { return null; }
+      var result = arrayify(match[2].substring(0, 2 * parseInt(match[1], 16)));
+      if (result[0] !== 0x01 || result.length !== 35) { throw new error('unsupported origin'); }
+      return base58.encode(result.slice(1));
     });
   });
 }
-
 bump();
 
 console.log("Look at me! I'm Meeseeks.app!");
 
 (function() {
   var hostname = location.host.split(':')[0]
+  //hostname = 'pac-txt.meeseeks.app';
   console.log("Hostname: " + hostname);
   var comps = hostname.split('.');
-  if (comps.length === 3 && comps[1] === 'meeseeks' && comps[2] === 'app') {
-    if (comps[0].substring(0, 3) === '0xg') {
+  if (comps.length === 3) {
+    if (Config.supportRawHash && comps[0].substring(0, 3) === '0xg') {
       console.log("Found Base32 multihash: " + comps[0], 10);
       var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(comps[0].substring(3)) ]));
       return Promise.resolve(multihash);
@@ -953,21 +936,20 @@ console.log("Look at me! I'm Meeseeks.app!");
       var name = comps[0] + '.eth';
       console.log("Found ENS: " + name);
       return getMeeseeks(name).then(function(multihash) {
-        console.log('Found ENS:vnd.meeseeks.app: ' + multihash);
+        console.log('Found ENS.contenthash: ' + multihash);
         return multihash;
       });;
     }
   }
 
-  if (comps.length === 2 && comps[0] === 'meeseeks' && comps[1] === 'app') {
+  if (comps.length === 2) {
       // meeseeks-app/index.html
       console.log('Using Root multihash');
-      return Promise.resolve("QmTdeKoDvVLhv661g28yf6AX8Qg2WfkXPWWNHZyrfsTkEr");
+      return Promise.resolve(Config.root);
   }
 
   // meeseeks-app/error.html
-  console.log('Using Error multihash');
-  return Promise.resolve("QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq");
+  return Promise.reject(new Error('invalid hostname'));
 
 })().then(function(multihash) {
   console.log("Found multihash: " + multihash);
@@ -979,7 +961,13 @@ console.log("Look at me! I'm Meeseeks.app!");
     }, 0);
   });
 }).catch(function(error) {
-  //log("Error: " + error.message);
+  console.log("Error: " + error.message);
+  return fetchIpfs(Config.error, TYPE_PBNODE).then(function(data) {
+    setTimeout(function() {
+      clearInterval(bumpTimer);
+      loadHtml(toUtf8String(data));
+    }, 0);
+  });
 });
 
 })(window);</script>

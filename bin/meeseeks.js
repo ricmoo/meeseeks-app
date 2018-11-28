@@ -5,6 +5,8 @@
 const fs = require('fs');
 const inherits = require('util').inherits;
 
+const UglifyJS = require("uglify-es");
+
 const cli = require('ethers-cli/lib/cli');
 const ethers = require('ethers');
 const ipfs = (function() {
@@ -22,6 +24,23 @@ let options = {
     _transaction: true,
     _name: 'meeseeks',
 };
+
+function getMimeType(filename) {
+    let ext = filename.toLowerCase().match(/\.([^.]*)$/);
+    if (!ext) { return 'application/octet-stream'; }
+    switch (ext[1]) {
+        case 'gif':
+            return 'image/gif';
+        case 'jpeg':
+        case 'jpg':
+            return 'image/jpeg';
+        case 'png':
+            return 'image/png';
+        default:
+            break;
+    }
+    return 'application/octet-stream';
+}
 
 let plugins = {};
 
@@ -71,6 +90,8 @@ LinkPlugin.prototype.prepare = function(opts) {
 }
 LinkPlugin.prototype.run = function() {
     let namehash = ethers.utils.namehash(this.name);
+    let hash = ethers.utils.concat([ "0x01", base58.decode(this.hash) ]);
+    console.log(hash);
     console.log('Linking: ', this.name, ' => ', this.hash);
     return this.provider.getNetwork().then((network) => {
         let contract = new ethers.Contract(network.ensAddress, [
@@ -81,13 +102,63 @@ LinkPlugin.prototype.run = function() {
                 throw new Error('missing resolver - ' + this.name);
             }
             let contract = new ethers.Contract(resolver, [
-                "function setText(bytes32, string, string)"
+                "function setText(bytes32, string, string)",
+                "function setContenthash(bytes32, bytes)"
             ], this.account);
-            return contract.setText(namehash, 'vnd.app.meeseeks', this.hash);
+            //return contract.setText(namehash, 'vnd.app.meeseeks', this.hash);
+            return contract.setContenthash(namehash, hash);
         });
     });
 }
 plugins['link'] = new LinkPlugin();
 
+
+function FlattenPlugin() {
+    cli.Plugin.call(this);
+}
+inherits(FlattenPlugin, cli.Plugin);
+
+FlattenPlugin.prototype.help = "FILENAME (experimental)";
+FlattenPlugin.prototype.prepare = function(opts) {
+    if (opts.args.length !== 2) {
+        throw new Error('flatten requires FILENAME');
+    }
+    this.filename = opts.args[1];
+
+    return Promise.resolve();
+}
+FlattenPlugin.prototype.run = function() {
+    let content = fs.readFileSync(this.filename).toString();
+    function replImg(all, params) {
+        function repl(all, filename) {
+            let content = fs.readFileSync(filename).toString('base64');
+            return 'src="data:' + getMimeType(filename) + ';base64,' + content + '"';
+        }
+        params = params.replace(/src\s*=\s*"([^"]*)"/i, repl).trim();
+        console.log(JSON.stringify(params));
+        return ['<img', (params.length ? ' ': ''), params, '>'].join('');
+    }
+    function replJs(all, params) {
+        let src = null;
+        function repl(all, filename) {
+            src = filename;
+            return '';
+        }
+        params = params.replace(/src\s*=\s*"([^"]*)"/i, repl).trim();
+
+        let content = fs.readFileSync(src).toString().trim();
+        content = UglifyJS.minify(content);
+
+        return [ '<script', (params.length ? ' ': ''), params, '>', content.code, '</script>'].join('');
+    }
+
+    content = content.replace(/<\s*img([^>]*)>/ig, replImg);
+    content = content.replace(/<\s*script([^>]*)>(\s*<\s*\/\s*script\s*>)/ig, replJs);
+
+    console.log(content);
+
+    return Promise.resolve();
+}
+plugins['flatten'] = new FlattenPlugin();
 
 cli.run(options, plugins)
