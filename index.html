@@ -484,7 +484,7 @@ var sha256 = (function() {
 /***** END OF require('hash.js'); */
 
 /**
- * var basex = require('base-x').sha256;
+ * var basex = require('base-x');
  *
  * This implementation is heavily based on base-x.
  *
@@ -913,8 +913,15 @@ function getMeeseeks(name) {
       var match = results[0].match(/^0x0{62}200{62}([0-9a-f]{2})([0-9a-f]*)$/i);
       if (!match || (parseInt(match[1], 16) * 2) > match[2].length) { return null; }
       var result = arrayify(match[2].substring(0, 2 * parseInt(match[1], 16)));
-      if (result[0] !== 0x01 || result.length !== 35) { throw new error('unsupported origin'); }
-      return base58.encode(result.slice(1));
+      if (result[0] === 0x01 && result.length === 35) {
+          // Legacy - from a typo in the early EIP-1577
+          // e.g. 0x011220e08ea2458249e8f26aee72b95b39c33849a992a3eff40bd06d26c12197adef16
+          return base58.encode(result.slice(1));
+      } else if (hexlify(result.slice(0, 4)) === "e3010170" && result.length === 38) {
+          // e.g. 0xe3010170122029f2d17be6139079dc48696d1f582a8530eb9805b561eda517e22a892c7e3f1f
+          return base58.encode(result.slice(4));
+      }
+      throw new error('unsupported origin');
     });
   });
 }

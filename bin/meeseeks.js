@@ -86,6 +86,15 @@ function flatten(filename) {
         return ['<img', (params.length ? ' ': ''), params, '>'].join('');
     }
 
+    function replUrl(all, filename) {
+        // Remote image
+        if (filename.indexOf('://') >= 0) { return all; }
+
+        // Local image; inline it
+        let content = fs.readFileSync(filename).toString('base64');
+        return "url(data:" + getMimeType(filename) + ";base64," + content + ")";
+     }
+
     function replJs(all, params) {
         let src = null;
         function repl(all, filename) {
@@ -108,6 +117,9 @@ function flatten(filename) {
 
     // <link rel="stylesheet" href="styles.css">
     content = content.replace(/<\s*link([^>]+)rel\s*=\s*"stylesheet"([^>]*)>/ig, replCss);
+
+    // url( blah )
+    content = content.replace(/url\(\s*([^)]*)\s*\)/ig, replUrl);
 
     // <img src="blah" />
     content = content.replace(/<\s*img([^>]*)>/ig, replImg);
@@ -177,8 +189,7 @@ LinkPlugin.prototype.prepare = function(opts) {
 }
 LinkPlugin.prototype.run = function() {
     let namehash = ethers.utils.namehash(this.name);
-    let hash = ethers.utils.concat([ "0x01", base58.decode(this.hash) ]);
-    console.log(hash);
+    let hash = ethers.utils.concat([ "0xe3010170", base58.decode(this.hash) ]);
     console.log('Linking: ', this.name, ' => ', this.hash);
     return this.provider.getNetwork().then((network) => {
         let contract = new ethers.Contract(network.ensAddress, [

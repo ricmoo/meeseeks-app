@@ -1,6 +1,6 @@
 {
   "name": "meeseeks-cli",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "The meeseeks library.",
   "main": "meeseeks.js",
   "bin": {
