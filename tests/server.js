@@ -73,6 +73,7 @@ https.createServer(options, handler).listen(8443, () => {
     console.log("Running on: https://localhost:8443");
     console.log("");
     console.log("To test a domain, add entries to /etc/hosts:");
+    console.log("127.0.0.1        meeseeks-local");
     console.log("127.0.0.1        pac-txt.meeseeks-local");
     console.log("127.0.0.1        amoebacore.meeseeks-local");
     console.log("127.0.0.1        0xgbwrx7wokisx2ujqhu3rg2u4gdaw7cnrtpn47kme3kk3fn7jfguro.meeseeks-local");
