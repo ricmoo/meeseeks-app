@@ -35,7 +35,7 @@ function mapHostname(hostname) {
     }
 
     // *.meeseeks.app
-    var prefix = getPrefix(".meeseeks.app");
+    var prefix = getPrefix(".eth.link");
     if (prefix) { return addSuffix(prefix); }
 
     // *.meeseeks-local (for testing and debugging)
@@ -43,7 +43,7 @@ function mapHostname(hostname) {
     if (prefix) { return addSuffix(prefix); }
 
     // Root
-    if (hostname === "meeseeks.app" || hostname === "meeseeks-local") {
+    if (hostname === "eth.link" || hostname === "meeseeks-local") {
         return RootMultihash;
     }
 
