@@ -5,7 +5,7 @@
 
 'use strict';
 
-var RootMultihash = "QmTdeKoDvVLhv661g28yf6AX8Qg2WfkXPWWNHZyrfsTkEr";
+var RootMultihash = "QmQ8xQybT8magdxC6Krjk2yezAn7GVTcYQKFZZ8VtCBVJ9";
 var ErrorMultihash = "QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq";
 
 // Configure this to change the loading animation
@@ -29,8 +29,7 @@ function mapHostname(hostname) {
     function addSuffix(prefix) {
         // IPFS raw multihash (our flavour to prevent collisions with ENS names)
         if (allowRawMultihash && prefix.substring(0, 3) === '0xg') {
-            var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(prefix.substring(3)) ]));
-            return multihash;
+            return base58.encode(concat([[ 0x12, 0x20 ], base32.decode(prefix.substring(3)) ]));
         }
         return prefix + ".eth";
     }
