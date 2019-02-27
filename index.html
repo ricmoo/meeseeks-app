@@ -5,12 +5,52 @@
 
 'use strict';
 
-var Config = {
-    error: "QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq",
-    root: "QmTdeKoDvVLhv661g28yf6AX8Qg2WfkXPWWNHZyrfsTkEr",
-    spinner: "\u25CF\u2219",
-    supportRawHash: true
-};
+var RootMultihash = "QmTdeKoDvVLhv661g28yf6AX8Qg2WfkXPWWNHZyrfsTkEr";
+var ErrorMultihash = "QmeSCtz2QWZQn3yhHKC5921Q5Aurv715thMjJzrpb6SEDq";
+
+// Configure this to change the loading animation
+var Spinner = "\u25CF\u2219";
+
+var allowRawMultihash = true;
+
+// Configure this to change Meeseeks App behavious
+// - Return an ENS name (cannot be a tld); or
+// - Return a multihash
+function mapHostname(hostname) {
+    function getPrefix(suffix) {
+        var offset = hostname.length - suffix.length;
+        if (hostname.substring(offset) === suffix) {
+            return hostname.substring(0, offset);
+        }
+        return null;
+    }
+
+    // Adds the ENS suffix (.eth) or converts invalid ENS names to IPFS multihash
+    function addSuffix(prefix) {
+        // IPFS raw multihash (our flavour to prevent collisions with ENS names)
+        if (allowRawMultihash && prefix.substring(0, 3) === '0xg') {
+            var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(prefix.substring(3)) ]));
+            return multihash;
+        }
+        return prefix + ".eth";
+    }
+
+    // *.meeseeks.app
+    var prefix = getPrefix(".meeseeks.app");
+    if (prefix) { return addSuffix(prefix); }
+
+    // *.meeseeks-local (for testing and debugging)
+    prefix = getPrefix(".meeseeks-local");
+    if (prefix) { return addSuffix(prefix); }
+
+    // Root
+    if (hostname === "meeseeks.app" || hostname === "meeseeks-local") {
+        return RootMultihash;
+    }
+
+    // Error
+    return ErrorMultihash;
+}
 
 function now() {
   return (new Date()).getTime();
@@ -20,7 +60,7 @@ var bumps = '';
 var t0 = now();
 function drawBumps() {
   document.getElementById('_mo').textContent = "loading secure content... (meeseeks.app bootstrap)\n" +
-     bumps + Config.spinner[parseInt(String((now() - t0) / 500)) % Config.spinner.length];
+     bumps + Spinner[parseInt(String((now() - t0) / 500)) % Spinner.length];
 }
 
 var bumpTimer = setInterval(function() {
@@ -931,35 +971,19 @@ console.log("Look at me! I'm Meeseeks.app!");
 
 (function() {
   var hostname = location.host.split(':')[0]
-  //hostname = 'pac-txt.meeseeks.app';
   console.log("Hostname: " + hostname);
-  var comps = hostname.split('.');
-  if (comps.length === 3) {
-    if (Config.supportRawHash && comps[0].substring(0, 3) === '0xg') {
-      console.log("Found Base32 multihash: " + comps[0], 10);
-      var multihash = base58.encode(concat([[ 0x12, 0x20 ], base32.decode(comps[0].substring(3)) ]));
-      return Promise.resolve(multihash);
-    } else {
-      var name = comps[0] + '.eth';
-      console.log("Found ENS: " + name);
+  var name = mapHostname(hostname);
+  if (name.indexOf(".") === -1) {
+      console.log("Found IPFS multihash: " + name);
+      return Promise.resolve(name);
+  } else {
+      console.log("Found ENS name: " + name);
       return getMeeseeks(name).then(function(multihash) {
         console.log('Found ENS.contenthash: ' + multihash);
         return multihash;
-      });;
-    }
+      });
   }
-
-  if (comps.length === 2) {
-      // meeseeks-app/index.html
-      console.log('Using Root multihash');
-      return Promise.resolve(Config.root);
-  }
-
-  // meeseeks-app/error.html
-  return Promise.reject(new Error('invalid hostname'));
-
 })().then(function(multihash) {
-  console.log("Found multihash: " + multihash);
   return fetchIpfs(multihash, TYPE_PBNODE).then(function(data) {
     console.log("Existance is pain! Good-Bye!");
     setTimeout(function() {
@@ -969,7 +993,7 @@ console.log("Look at me! I'm Meeseeks.app!");
   });
 }).catch(function(error) {
   console.log("Error: " + error.message);
-  return fetchIpfs(Config.error, TYPE_PBNODE).then(function(data) {
+  return fetchIpfs(ErrorMultihash, TYPE_PBNODE).then(function(data) {
     setTimeout(function() {
       clearInterval(bumpTimer);
       loadHtml(toUtf8String(data));

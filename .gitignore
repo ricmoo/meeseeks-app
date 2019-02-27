@@ -1,6 +1,5 @@
 # Local server and self-signed certs I use for local testing
-cert/
-server.js
+tests/cert/
 
 # Node modules
 node_modules/
@@ -10,3 +9,5 @@ obsolete/
 
 # Temporary file that flatten.py uses
 .tmp.js
+
+.DS_Store
