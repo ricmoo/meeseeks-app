@@ -8,6 +8,13 @@ safely verify and serve IPFS content fetched from an IPFS
 API gateway, while preserving CORS and other Cross-Origin
 Policy protections that modern browsers implement.
 
+
+eth.link
+--------
+
+This branch of meeseeks-app is specifically for [eth.link](https:eth.link) and
+is an example of how meeseeks can be altered for your own purposes. :o)
+
 Quick Start
 -----------
 
