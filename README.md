@@ -101,7 +101,7 @@ FAQ
 
 **Why do you use base32 hashes for the multihash?! Why not base58? Why not hex? Something normal?**
 
-Unforunately, the two obvious choices to be standard are technically impossible. A
+Unfortunately, the two obvious choices to be standard are technically impossible. A
 Base58 encoded string may contain both lower-case and upper-case characters, and
 domain names MUST be lower-case. On the other side of standard-encodings, the hex encoding
 would put a multihash in at 64 bytes, and SSL certificates have a hard-limit of 63 bytes
@@ -121,11 +121,11 @@ provide better directions and make it easier in the non-distant future.
 
 **But I have to trust your CDN?**
 
-Yes, that's true. We highly recommend you host your own instnace on a
+Yes, that's true. We highly recommend you host your own instance on a
 domain you own for production. See the answer to the previous question.
 
 That said, if you currently use *ipfs.io* or *ipfs.infura.io*, you are
-trusting their gateway, since the cntent is not being verified by the
+trusting their gateway, since the content is not being verified by the
 browser.
 
 **Sub-sub-domains?**
