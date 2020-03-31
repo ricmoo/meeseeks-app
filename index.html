@@ -911,7 +911,7 @@ function namehash(name) {
 }
 
 function callEtherscan(address, data) {
-    var url = "https://api.etherscan.io/api?module=proxy&action=eth_call&to=" + address + "&data=" + data + "&tag=latest"
+    var url = "https://api.etherscan.io/api?module=proxy&action=eth_call&to=" + address + "&data=" + data + "&tag=latest&apikey=9D13ZE7XSBTJ94N9BNJ2MA33VMAY2YPIRB";
     return fetch(url).then(function(body) {
         return body.text().then(function(body) {
             var result = JSON.parse(body);
@@ -925,7 +925,7 @@ function getMeeseeks(name) {
 
   // ENS.resolver(hash)
   return Promise.all([
-    callEtherscan("0x314159265dd8dbb310642f98f50c066173c1259b", "0x0178b8bf" + hash)
+    callEtherscan("0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e", "0x0178b8bf" + hash)
   ]).then(function(results) {
     bump();
     // @TODO: Check all results match
@@ -969,7 +969,8 @@ bump();
 console.log("Look at me! I'm Meeseeks.app!");
 
 (function() {
-  var hostname = location.host.split(':')[0]
+  var hostname = location.host.split(':')[0];
+
   console.log("Hostname: " + hostname);
   var name = mapHostname(hostname);
   if (name.indexOf(".") === -1) {
